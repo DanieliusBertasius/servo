@@ -2,6 +2,7 @@
 Pagrindiniai sprendimai:
 * 0.8 A viršsrovės apsaugos įsijungimo srovė (pritaikyta prie SG90)
 * DC-DC projektuotas 0.8 A maksimaliai srovei
+* Parinktas 200 kHz keitiklio dažnis lengvai realizacijai vienasluoksnėje plokštėje prototipui
 * 4.7 mF kondensatorius 50 Hz komutacijos triukšmo iš variklio filtravimui (optimizuota eksperimentiškai, lieka ~0.1 Vpp triukšmo)
 * Kondensatorius įsijungiant neapkrauna maitinimo šaltinio, nes DC-DC lustas turi soft-start funkciją
 
