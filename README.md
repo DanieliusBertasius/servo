@@ -1,5 +1,7 @@
-# Servo variklio valdiklis su apsauga nuo viršsrovės
+# Maišytuvas PCB ėsdinimo tirpalui
 Pagrindiniai sprendimai:
+* SG90 servo variklis (reikalingas maišymas kaitaliojant kryptį, reikalingas minimalus jėgos momentas)
+* Maitinama nuo 12 V (mažiausia €/W)
 * 0.8 A viršsrovės apsaugos įsijungimo srovė (pritaikyta prie SG90)
 * DC-DC projektuotas 0.8 A maksimaliai srovei
 * Parinktas 200 kHz keitiklio dažnis lengvai realizacijai vienasluoksnėje plokštėje prototipui
