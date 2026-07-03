@@ -1,0 +1,29 @@
+Id;Designator;Footprint;Quantity;Designation
+1;BZ1;LOUDITY LD-BZPN-1705;1;LD-BZPN-1705
+2;C1, C9, C10;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;3;100n
+3;C2;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;10u 16V
+4;C3;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;10u
+5;C4;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;220n 10V
+6;C5;CP_Radial_D16.0mm_P7.50mm;1;4.7m
+7;C6;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;1.5n
+8;C7;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;1u 16V
+9;C8;C_0805_2012Metric_Pad1.18x1.45mm_HandSolder;1;4.7u
+10;D1, D2;D_SMA_Handsoldering;2;SK310SMA
+11;D3;LED_D3.0mm;1;L-7104SURCK
+12;J1;PinHeader_1x03_P2.54mm_Vertical;1;servo
+13;J2;BarrelJack_CUI_PJ-102AH_Horizontal;1;Jack-DC
+14;J3;PinHeader_1x04_P2.54mm_Vertical;1;swd
+15;L1;LD2-HV;1;22u
+16;Q2;SOIC-8_3.9x4.9mm_P1.27mm;1;DMT64M8LSS
+17;R1;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;43k
+18;R2;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;249k
+19;R3, R9;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;2;8.2k
+20;R4, R8;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;2;10k
+21;R5;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;0.22
+22;R6;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;1.3k
+23;R7;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;51k
+24;SW1;SolderWire-0.25sqmm_1x02_P4.2mm_D0.65mm_OD1.7mm;1;restart
+25;SW2;SolderWire-0.25sqmm_1x02_P4.2mm_D0.65mm_OD1.7mm;1;buzzer
+26;U1;SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.71x3.7mm;1;AOZ1284PI
+27;U3;TSSOP-20_4.4x6.5mm_P0.65mm;1;STM32G030F6Px
+28;U4;SOT-89-3_Handsoldering;1;LDI1117-3.3U-DIO
