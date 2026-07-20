@@ -13,7 +13,7 @@ Id;Designator;Footprint;Quantity;Designation
 12;J1;PinHeader_1x03_P2.54mm_Vertical;1;servo
 13;J2;BarrelJack_CUI_PJ-102AH_Horizontal;1;Jack-DC
 14;J3;PinHeader_1x04_P2.54mm_Vertical;1;swd
-15;L1;LD2-HV;1;22u
+15;L1;LD2-220-HV;1;22u
 16;Q2;SOIC-8_3.9x4.9mm_P1.27mm;1;DMT64M8LSS
 17;R1;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;43k
 18;R2;R_0805_2012Metric_Pad1.20x1.40mm_HandSolder;1;249k
