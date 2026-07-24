@@ -37,7 +37,7 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 extern volatile uint8_t servo_power_rdy,angle,direction,buzzer;
-extern volatile uint32_t last_debounce,tick;
+extern volatile uint32_t last_debounce,tick,restart;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -70,7 +70,8 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 #define DEBOUNCE 500
 #define SOFTSTART 100
-#define ADCSTART (SOFTSTART+20)
+#define ADC_DELAY 50
+#define ADCSTART0 (SOFTSTART+ADC_DELAY)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
