@@ -131,32 +131,34 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  if(tick>=ADCSTART){
+  tick=HAL_GetTick();
+  if(servo_power_rdy==0&&tick>=ADCSTART0){ // only at bootup
+  	  HAL_ADC_Start_IT(&hadc1); // always first in systick
+    }
+  else if(tick>=restart+ADC_DELAY){
 	  HAL_ADC_Start_IT(&hadc1); // always first in systick
   }
-
-  tick=HAL_GetTick();
-    if(tick>last_debounce+DEBOUNCE){
+  if(tick>last_debounce+DEBOUNCE){
 	  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
   }
-
   if(servo_power_rdy==0&&tick>=SOFTSTART){
 	  servo_power_rdy=1;
   }
 
   if(servo_power_rdy&&buzzer==0&&tick%10==0){
+	  if(angle==180){
+		  direction=0;
+	  }
+	  else if(angle==0){
+		  direction=1;
+	  }
   	  if(direction){
   		  angle++;
   	  }
   	  else{
   		  angle--;
   	  }
-  	  if(angle==180){
-  		  direction=0;
-  	  }
-  	  else if(angle==0){
-  		  direction=1;
-  	  }
+
   }
   /* USER CODE END SysTick_IRQn 1 */
 }

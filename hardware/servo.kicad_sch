@@ -10149,7 +10149,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_BarrelJack:BarrelJack_diy"
+		(property "Footprint" "Connector_BarrelJack:BarrelJack_GCT_DCJ200-10-A_Horizontal"
 			(at 12.7 21.336 0)
 			(hide yes)
 			(show_name no)

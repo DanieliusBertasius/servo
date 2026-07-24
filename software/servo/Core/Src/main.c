@@ -50,7 +50,7 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,buzzer=0,count=0;
-volatile uint32_t last_debounce=0,tick=0;
+volatile uint32_t last_debounce=0,tick=0,restart=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -371,8 +371,9 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
 	HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
 	last_debounce=HAL_GetTick();
+	restart=HAL_GetTick();
 	HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
 	HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
 	buzzer=0;
 }
@@ -380,7 +381,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
 	if(htim->Instance == TIM16){
 		if(buzzer){
-			HAL_GPIO_TogglePin(buzzer_GPIO_Port, buzzer_Pin);
+			//HAL_GPIO_TogglePin(buzzer_GPIO_Port, buzzer_Pin);
 		}
 		else{
 			HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, 0);
