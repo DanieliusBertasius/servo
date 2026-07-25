@@ -1,4 +1,6 @@
-Note to self: add ground test points in upcoming projects
+Notes to future self:
+* Add ground test points
+* Use countersunk screws if screw heads mount on bottom layer, no supports needed
 
 <img src="screenshots/photo.jpg" alt="Finished PCB photo" width="50%">
 
