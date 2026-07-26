@@ -70,7 +70,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 #define DEBOUNCE 500
 #define SOFTSTART 100
-#define ADC_DELAY 50
+#define ADC_DELAY 200
 #define ADCSTART0 (SOFTSTART+ADC_DELAY)
 /* USER CODE END Private defines */
 
