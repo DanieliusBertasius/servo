@@ -158,7 +158,6 @@ void SysTick_Handler(void)
   	  else{
   		  angle--;
   	  }
-
   }
   /* USER CODE END SysTick_IRQn 1 */
 }

@@ -111,6 +111,7 @@ int main(void)
   while (1)
   {
 	TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
