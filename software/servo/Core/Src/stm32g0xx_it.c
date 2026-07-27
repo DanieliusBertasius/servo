@@ -55,7 +55,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern ADC_HandleTypeDef hadc1;
+extern DMA_HandleTypeDef hdma_adc1;
 extern TIM_HandleTypeDef htim14;
 extern TIM_HandleTypeDef htim16;
 /* USER CODE BEGIN EV */
@@ -131,35 +131,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  tick=HAL_GetTick();
-  if(servo_power_rdy==0&&tick>=ADCSTART0){ // only at bootup
-  	  HAL_ADC_Start_IT(&hadc1); // always first in systick
-    }
-  else if(tick>=restart+ADC_DELAY){
-	  HAL_ADC_Start_IT(&hadc1); // always first in systick
-  }
-  if(tick>last_debounce+DEBOUNCE){
-	  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
-  }
-  if(servo_power_rdy==0&&tick>=SOFTSTART){
-	  servo_power_rdy=1;
-  }
-
-  if(servo_power_rdy&&buzzer==0&&tick%10==0){
-	  if(angle==180){
-		  direction=0;
-	  }
-	  else if(angle==0){
-		  direction=1;
-	  }
-  	  if(direction){
-  		  angle++;
-  	  }
-  	  else{
-  		  angle--;
-  	  }
-
-  }
+  ticked=1;
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -185,17 +157,17 @@ void EXTI2_3_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles ADC1 interrupt.
+  * @brief This function handles DMA1 channel 1 interrupt.
   */
-void ADC1_IRQHandler(void)
+void DMA1_Channel1_IRQHandler(void)
 {
-  /* USER CODE BEGIN ADC1_IRQn 0 */
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
 
-  /* USER CODE END ADC1_IRQn 0 */
-  HAL_ADC_IRQHandler(&hadc1);
-  /* USER CODE BEGIN ADC1_IRQn 1 */
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
 
-  /* USER CODE END ADC1_IRQn 1 */
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
 }
 
 /**
