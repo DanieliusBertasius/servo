@@ -36,8 +36,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-extern volatile uint8_t servo_power_rdy,angle,direction,buzzer;
-extern volatile uint32_t last_debounce,tick,restart;
+extern volatile uint8_t pressed,waiting_for_stop,ticked;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

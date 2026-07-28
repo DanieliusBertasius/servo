@@ -31,10 +31,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define POWEROFF_THRESHOLD 1.212/3.1*4095
 #define I_STALL 0.8
 #define R_SHUNT 0.22
 #define THRESHOLD I_STALL*R_SHUNT/3.3*4095
-#define SAMPLES 3 //ignored samples
+#define DEBOUNCE 500
+#define SOFTSTART 100
+#define ADC_DELAY 0
+#define ADCSTART0 (SOFTSTART+ADC_DELAY)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,18 +48,22 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 TIM_HandleTypeDef htim14;
 TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t servo_power_rdy=0,angle=90,direction=1,buzzer=0,count=0;
+volatile uint8_t servo_power_rdy=0,angle=90,direction=1,buzzer=0,adc=0,ticked=0,waiting_for_stop=0,pressed=0,complete=0;
+volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM16_Init(void);
@@ -97,6 +105,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM14_Init();
   MX_TIM16_Init();
@@ -112,6 +121,71 @@ int main(void)
   {
 	TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
 
+	if(complete){
+		complete=0;
+		int i;
+		for(i=0;i<30;i+=2){
+			sum+=ADC_VAL[i];
+		}
+		sum=sum/15;
+		if(sum>THRESHOLD){
+			buzzer=1;
+		}
+		sum=0;
+	}
+	if(pressed){
+		buzzer=0;
+		pressed=0;
+		HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
+		last_debounce=HAL_GetTick();
+		restart=HAL_GetTick();
+		HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
+		HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
+		HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+
+	}
+	if(waiting_for_stop){
+		waiting_for_stop=0;
+		HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
+		HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
+		HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
+		adc=0;
+		HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
+	}
+	if(ticked){
+		ticked=0;
+		tick=HAL_GetTick();
+		if(restart==0&&tick>=ADCSTART0&&adc==0){ // only at bootup
+		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL[0], 2); // always first in systick
+		  adc=1;
+		}
+		else if(restart!=0&&tick>=restart+ADC_DELAY&&adc==0){
+		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL[0], 2); // always first in systick
+		  adc=1;
+		}
+		if(tick>last_debounce+DEBOUNCE){
+		  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+		}
+		if(servo_power_rdy==0&&tick>=SOFTSTART){
+		  servo_power_rdy=1;
+		}
+
+		if(servo_power_rdy&&buzzer==0&&tick%10==0){
+		  if(angle==180){
+			  direction=0;
+		  }
+		  else if(angle==0){
+			  direction=1;
+		  }
+		  if(direction){
+			  angle++;
+		  }
+		  else{
+			  angle--;
+		  }
+
+		}
+	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -185,22 +259,21 @@ static void MX_ADC1_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV64;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 2;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_1CYCLE_5;
-  hadc1.Init.SamplingTimeCommon2 = ADC_SAMPLETIME_1CYCLE_5;
+  hadc1.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_160CYCLES_5;
+  hadc1.Init.SamplingTimeCommon2 = ADC_SAMPLETIME_160CYCLES_5;
   hadc1.Init.OversamplingMode = DISABLE;
   hadc1.Init.TriggerFrequencyMode = ADC_TRIGGER_FREQ_HIGH;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -213,6 +286,16 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_5;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_VREFINT;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -302,6 +385,22 @@ static void MX_TIM16_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -358,28 +457,15 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    if(HAL_ADC_GetValue(&hadc1)>THRESHOLD){
-    	count++;
-    }
-    else{
-    	count=0;
-    }
-    if(count>SAMPLES){
-    	buzzer=1;
-    }
+	complete=1;
+	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
+		buzzer=1;
+	}
 }
-void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
-{
-	HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
-	last_debounce=HAL_GetTick();
-	restart=HAL_GetTick();
-	HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
-	HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-	buzzer=0;
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
+	pressed=1;
 }
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
-{
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim){
 	if(htim->Instance == TIM16){
 		if(buzzer){
 			//HAL_GPIO_TogglePin(buzzer_GPIO_Port, buzzer_Pin);
@@ -388,11 +474,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 			HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, 0);
 		}
 	}
-	else{
+	else if(htim->Instance == TIM14){
 		if(buzzer){
-			HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
-			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
-			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
+			waiting_for_stop=1;
 		}
 	}
 }
