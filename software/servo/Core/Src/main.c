@@ -44,8 +44,8 @@
 #define ADC_DELAY 0
 #define ADCSTART0 (SOFTSTART+ADC_DELAY)
 
-#define TARGET_FLASH_ADDR   0x08007800U
-#define TARGET_FLASH_PAGE   15U
+#define FLASH_ADDR   0x08007800U
+#define FLASH_PAGE   15U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,8 +62,10 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,buzzer=0,adc=0,ticked=0,waiting_for_stop=0,pressed=0,complete=0;
+uint8_t empty_found=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
+uint32_t next_write=FLASH_ADDR;
 
 /* USER CODE END PV */
 
@@ -75,7 +77,8 @@ static void MX_ADC1_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
-
+HAL_StatusTypeDef Erase_Flash_Page(uint32_t page_num);
+HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -117,10 +120,24 @@ int main(void)
   MX_TIM14_Init();
   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
-  HAL_TIM_Base_Start_IT(&htim14);
+  for(uint32_t i=FLASH_ADDR;i<(FLASH_ADDR+2048U);i+=8){
+	  if(*(volatile uint64_t*)i!=0xFFFFFFFFFFFFFFFFULL){
+		  angle = *(volatile uint8_t*)i;
+	  }
+	  else{
+		  next_write=i;
+		  empty_found=1;
+		  break;
+	  }
+  }
+  if(empty_found==0){
+	  Erase_Flash_Page(FLASH_PAGE);
+	  next_write=FLASH_ADDR;
+  }
   HAL_TIM_Base_Start_IT(&htim16);
-  angle = *(volatile uint8_t*)TARGET_FLASH_ADDR;
+  TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
+  HAL_TIM_Base_Start_IT(&htim14);
+  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -463,15 +480,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-HAL_StatusTypeDef Write_Flash(uint32_t address, uint32_t page_num, uint8_t value)
-{
+HAL_StatusTypeDef Erase_Flash_Page(uint32_t page_num){
     HAL_StatusTypeDef status;
     uint32_t page_error = 0;
-
-    // 1. Unlock the Flash interface
     HAL_FLASH_Unlock();
 
-    // 2. Clear any pending flags (ECC, programming errors)
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPERR);
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PROGERR);
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR);
@@ -482,27 +495,33 @@ HAL_StatusTypeDef Write_Flash(uint32_t address, uint32_t page_num, uint8_t value
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_FASTERR);
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
 
-    // 3. Configure the Page Erase
-    FLASH_EraseInitTypeDef eraseInitStruct = {0};
-    eraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
-    eraseInitStruct.Banks       = FLASH_BANK_1;
-    eraseInitStruct.Page        = page_num;
-    eraseInitStruct.NbPages     = 1;
+    // 3. Configure page erase parameters
+    FLASH_EraseInitTypeDef eraseConfig = {0};
+    eraseConfig.TypeErase   = FLASH_TYPEERASE_PAGES;
+    eraseConfig.Banks       = FLASH_BANK_1;
+    eraseConfig.Page        = page_num;
+    eraseConfig.NbPages     = 1;
 
-    // Erase the page (Resets all bits in the 2KB block back to 0xFFFFFFFFFFFFFFFF)
-    status = HAL_FLASHEx_Erase(&eraseInitStruct, &page_error);
-    if (status != HAL_OK)
-    {
-        HAL_FLASH_Lock();
-        return status;
-    }
-
-    // 4. Program the 64-bit (double word) variable
-    status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, value);
-
-    // 5. Lock the Flash interface to protect against unintended writes
+    status = HAL_FLASHEx_Erase(&eraseConfig, &page_error);
     HAL_FLASH_Lock();
+    return status;
+}
+HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value){
+    HAL_StatusTypeDef status;
+    HAL_FLASH_Unlock();
 
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PROGERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGAERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_SIZERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGSERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_MISERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_FASTERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
+
+    status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, value);
+    HAL_FLASH_Lock();
     return status;
 }
 
@@ -510,7 +529,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	complete=1;
 	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
-		Write_Flash(TARGET_FLASH_ADDR, TARGET_FLASH_PAGE, angle);
+		Write_Flash(next_write, angle);
 	}
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
