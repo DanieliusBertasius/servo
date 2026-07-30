@@ -62,8 +62,10 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,buzzer=0,adc=0,ticked=0,waiting_for_stop=0,pressed=0,complete=0;
+uint8_t empty_found=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
+uint32_t next_write=FLASH_ADDR;
 
 /* USER CODE END PV */
 
@@ -75,7 +77,8 @@ static void MX_ADC1_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
-
+HAL_StatusTypeDef Erase_Flash_Page(uint32_t page_num);
+HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -117,13 +120,24 @@ int main(void)
   MX_TIM14_Init();
   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
-  HAL_TIM_Base_Start_IT(&htim14);
-  HAL_TIM_Base_Start_IT(&htim16);
-  angle = *(volatile uint8_t*)TARGET_FLASH_ADDR;
-  if(0){
-	  Erase_Flash_Page(FLASH_PAGE);
+  for(uint32_t i=FLASH_ADDR;i<(FLASH_ADDR+2048U);i+=8){
+	  if(*(volatile uint64_t*)i!=0xFFFFFFFFFFFFFFFFULL){
+		  angle = *(volatile uint8_t*)i;
+	  }
+	  else{
+		  next_write=i;
+		  empty_found=1;
+		  break;
+	  }
   }
+  if(empty_found==0){
+	  Erase_Flash_Page(FLASH_PAGE);
+	  next_write=FLASH_ADDR;
+  }
+  HAL_TIM_Base_Start_IT(&htim16);
+  TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
+  HAL_TIM_Base_Start_IT(&htim14);
+  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -492,7 +506,7 @@ HAL_StatusTypeDef Erase_Flash_Page(uint32_t page_num){
     HAL_FLASH_Lock();
     return status;
 }
-HAL_StatusTypeDef Write_Flash(uint32_t address, uint32_t page_num, uint8_t value){
+HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value){
     HAL_StatusTypeDef status;
     HAL_FLASH_Unlock();
 
@@ -515,7 +529,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	complete=1;
 	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
-		Write_Flash(FLASH_ADDR, FLASH_PAGE, angle);
+		Write_Flash(next_write, angle);
 	}
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
