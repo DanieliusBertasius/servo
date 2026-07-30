@@ -147,6 +147,7 @@ int main(void)
 	TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
 
 	if(complete){
+		HAL_ADC_Stop_DMA(&hadc1);
 		complete=0;
 		int i;
 		for(i=0;i<30;i+=2){
@@ -157,6 +158,7 @@ int main(void)
 			buzzer=1;
 		}
 		sum=0;
+		HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30);
 	}
 	if(pressed){
 		buzzer=0;
@@ -181,11 +183,11 @@ int main(void)
 		ticked=0;
 		tick=HAL_GetTick();
 		if(restart==0&&tick>=ADCSTART0&&adc==0){ // only at bootup
-		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL[0], 2); // always first in systick
+		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
 		  adc=1;
 		}
 		else if(restart!=0&&tick>=restart+ADC_DELAY&&adc==0){
-		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL[0], 2); // always first in systick
+		  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
 		  adc=1;
 		}
 		if(tick>last_debounce+DEBOUNCE){
