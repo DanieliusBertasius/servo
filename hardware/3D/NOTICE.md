@@ -1,2 +1,2 @@
-Models might need updating if barrel jack footprint is changed to avoid milling <br>
+Models need updating after PCB redesign <br>
 Orcaslicer project and gcode is untested
