@@ -13277,7 +13277,7 @@
 		(uuid "47853d44-3c80-42de-b306-1b854797d090")
 	)
 	(gr_rect
-		(start 0 0.5)
+		(start 0 0)
 		(end 43 44)
 		(stroke
 			(width 0.2)
