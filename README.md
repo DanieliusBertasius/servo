@@ -8,7 +8,8 @@ Notes to future self:
 * Use countersunk screws if screw heads mount on bottom layer, no supports needed
 * Use connectors for buttons
 
-<img src="screenshots/photo.jpg" alt="Finished PCB photo" width="50%">
+<!-- <img src="screenshots/photo.jpg" alt="Finished PCB photo" width="50%"> -->
+# Finished PCB photo goes here
 
 PSU: <br><br>
 <img src="screenshots/power.PNG" alt="Power schematic" width="75%">
