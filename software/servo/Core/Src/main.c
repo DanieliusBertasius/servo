@@ -31,6 +31,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define BUZZER 250 // half period in millis
+
 #define VREFINT 1.212
 #define POWEROFF_THRESHOLD VREFINT/3.1*4095
 
@@ -62,7 +64,7 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=1,adc=0,ticked=0,stop_command=0,pressed=0,complete=0;
-uint8_t empty_found=0;
+uint8_t empty_found=0,buzzer=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
 uint32_t next_write=FLASH_ADDR;
@@ -183,6 +185,9 @@ int main(void)
 		if(ticked){
 			ticked=0;
 			tick=HAL_GetTick();
+			if(tick%BUZZER==0){
+				buzzer=!buzzer;
+			}
 			if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
 				HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
 				adc=1;
@@ -541,7 +546,7 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim){
 	if(htim->Instance == TIM16){
-		if(stall){
+		if(stall&&buzzer){
 			HAL_GPIO_TogglePin(buzzer_GPIO_Port, buzzer_Pin);
 		}
 		else{
