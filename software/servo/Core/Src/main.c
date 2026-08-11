@@ -34,7 +34,7 @@
 #define BUZZER 250 // half period in millis
 
 #define VREFINT 1.212
-#define POWEROFF_THRESHOLD VREFINT/3.1*4095
+#define POWEROFF_THRESHOLD VREFINT/3.05*4095
 
 #define I_STALL 0.8
 #define R_SHUNT 0.22
@@ -43,7 +43,7 @@
 #define DEBOUNCE 0
 
 #define SOFTSTART 100
-#define ADC_DELAY 0
+#define ADC_DELAY 100
 #define ADCSTART0 (SOFTSTART+ADC_DELAY)
 
 #define FLASH_ADDR   0x08007800U
@@ -63,7 +63,8 @@ TIM_HandleTypeDef htim14;
 TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=1,adc=0,ticked=0,stop_command=0,pressed=0,complete=0;
+volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
+		write_command=0,go_home=0;
 uint8_t empty_found=0,buzzer=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
@@ -144,16 +145,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  if(stop_command){
-	  		HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
-	  		HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
-	  		HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
-	  		adc=0;
-	  		HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
-	  		stop_command=0;
-	  	}
+  while(1){
+		if(stall){
+			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
+			HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
+			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
+			adc=0;
+			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
+		}
 		TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
 
 		if(complete){
@@ -173,13 +172,18 @@ int main(void)
 			sum=0;
 		}
 		if(pressed){
-			stall=0;
-			last_debounce=HAL_GetTick();
-			restart=HAL_GetTick();
-			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-			HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
-			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-			pressed=0;
+			if(stall){
+				stall=0;
+				last_debounce=HAL_GetTick();
+				restart=HAL_GetTick();
+				HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
+				HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
+				HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+				pressed=0;
+			}
+			else{
+				go_home=1;
+			}
 		}
 
 		if(ticked){
@@ -203,7 +207,7 @@ int main(void)
 			  servo_power_rdy=1;
 			}
 
-			if(servo_power_rdy&&stall==0&&tick%10==0){
+			if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0&&(go_home==0||(angle!=0&&angle!=180))){
 			  if(angle==180){
 				  direction=0;
 			  }
@@ -216,7 +220,6 @@ int main(void)
 			  else{
 				  angle--;
 			  }
-
 			}
 		}
     /* USER CODE END WHILE */
@@ -537,6 +540,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	complete=1;
 	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
+		write_command=1;
 		Write_Flash(next_write, angle);
 	}
 }
@@ -551,11 +555,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim){
 		}
 		else{
 			HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, 0);
-		}
-	}
-	else if(htim->Instance == TIM14){ // monitoring for stall
-		if(stall){
-			stop_command=1;
 		}
 	}
 }
