@@ -541,7 +541,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	complete=1;
 	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
 		write_command=1;
-		Write_Flash(next_write, angle);
+		if(Write_Flash(next_write, angle)==HAL_OK){
+			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
+		}
 	}
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
