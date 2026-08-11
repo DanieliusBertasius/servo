@@ -153,7 +153,7 @@ int main(void)
 			adc=0;
 			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
 		}
-		TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
+		TIM14->CCR1 = (angle/180.0*0.1+0.025)*65535;
 
 		if(complete){
 			HAL_ADC_Stop_DMA(&hadc1);
