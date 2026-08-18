@@ -40,7 +40,7 @@
 #define R_SHUNT 0.22
 #define THRESHOLD I_STALL*R_SHUNT/3.3*4095
 
-#define DEBOUNCE 0
+#define DEBOUNCE 1000
 
 #define SOFTSTART 100
 #define ADC_DELAY 100
@@ -146,6 +146,87 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while(1){
+	if(pressed){
+		last_debounce=HAL_GetTick();
+		pressed=0;
+		if(stall){
+			stall=0;
+			restart=HAL_GetTick();
+			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
+			HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
+			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+		}
+		else{
+			go_home++;
+		}
+	}
+	if(ticked){
+		ticked=0;
+		tick=HAL_GetTick();
+		if(tick%BUZZER==0){
+			buzzer=!buzzer;
+		}
+		if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			adc=1;
+		}
+		else if(restart!=0 && tick>=restart+ADC_DELAY && adc==0){
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			adc=1;
+		}
+		if(tick>last_debounce+DEBOUNCE){
+			HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+		}
+		if(servo_power_rdy==0&&tick>=SOFTSTART){
+			servo_power_rdy=1;
+		}
+
+		if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0){
+			switch(go_home){
+			case 0:
+				if(angle==180){
+					direction=0;
+				}
+				else if(angle==0){
+					direction=1;
+				}
+				if(direction){
+					angle++;
+				}
+				else{
+					angle--;
+				}
+				break;
+			case 1:
+				if(angle==180||angle==0){
+					break;
+				}
+				if(direction){
+					angle++;
+				}
+				else{
+					angle--;
+				}
+				break;
+			case 2:
+				if(angle==0){
+					direction=1;
+				}
+				else if(angle==180){
+					direction=0;
+				}
+				else if(angle==90){
+					break;
+				}
+				if(direction){
+					angle++;
+				}
+				else{
+					angle--;
+				}
+				break;
+			}
+		}
 		if(stall){
 			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
 			HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
@@ -171,57 +252,9 @@ int main(void)
 			}
 			sum=0;
 		}
-		if(pressed){
-			if(stall){
-				stall=0;
-				last_debounce=HAL_GetTick();
-				restart=HAL_GetTick();
-				HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-				HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
-				HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-				pressed=0;
-			}
-			else{
-				go_home=1;
-			}
-		}
 
-		if(ticked){
-			ticked=0;
-			tick=HAL_GetTick();
-			if(tick%BUZZER==0){
-				buzzer=!buzzer;
-			}
-			if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
-				HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
-				adc=1;
-			}
-			else if(restart!=0 && tick>=restart+ADC_DELAY && adc==0){
-			  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
-			  adc=1;
-			}
-			if(tick>last_debounce+DEBOUNCE){
-			  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
-			}
-			if(servo_power_rdy==0&&tick>=SOFTSTART){
-			  servo_power_rdy=1;
-			}
+	}
 
-			if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0&&(go_home==0||(angle!=0&&angle!=180))){
-			  if(angle==180){
-				  direction=0;
-			  }
-			  else if(angle==0){
-				  direction=1;
-			  }
-			  if(direction){
-				  angle++;
-			  }
-			  else{
-				  angle--;
-			  }
-			}
-		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
