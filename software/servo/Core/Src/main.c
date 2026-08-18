@@ -127,6 +127,7 @@ int main(void)
 		for(i=0;i<30;i+=2){
 			sum+=ADC_VAL[i];
 		}
+<<<<<<< Updated upstream
 		sum=sum/15;
 		if(sum>THRESHOLD){
 			buzzer=1;
@@ -168,6 +169,21 @@ int main(void)
 		}
 		if(servo_power_rdy==0&&tick>=SOFTSTART){
 		  servo_power_rdy=1;
+=======
+		if(pressed){
+			if(stall){
+				stall=0;
+				last_debounce=HAL_GetTick();
+				restart=HAL_GetTick();
+				HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
+				HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
+				HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+				pressed=0;
+			}
+			else{
+				go_home+=1;
+			}
+>>>>>>> Stashed changes
 		}
 
 		if(servo_power_rdy&&buzzer==0&&tick%10==0){
@@ -184,6 +200,55 @@ int main(void)
 			  angle--;
 		  }
 
+<<<<<<< Updated upstream
+=======
+			if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0){
+				switch(go_home){
+					case 0:
+						if(angle==180){
+							direction=0;
+						}
+						else if(angle==0){
+							direction=1;
+						}
+						if(direction){
+							angle++;
+						}
+						else{
+							angle--;
+						}
+						break;
+					case 1:
+						if(angle==180){
+							direction=0;
+						}
+						else if(angle==0){
+							direction=1;
+						}
+						if(direction&&angle!=90){
+							angle++;
+						}
+						else if(angle!=90){
+							angle--;
+						}
+						break;
+					case 2:
+						if(angle==180){
+							go_home=3;
+						}
+						else if(angle==0){
+							go_home=3;
+						}
+						if(direction&&(angle!=0&&angle!=180)){
+							angle++;
+						}
+						else if(angle!=0&&angle!=180){
+							angle--;
+						}
+						break;
+				}
+			}
+>>>>>>> Stashed changes
 		}
 	}
     /* USER CODE END WHILE */
