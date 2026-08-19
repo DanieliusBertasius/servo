@@ -40,7 +40,7 @@
 #define R_SHUNT 0.22
 #define THRESHOLD I_STALL*R_SHUNT/3.3*4095
 
-#define DEBOUNCE 1000
+#define DEBOUNCE 500
 
 #define SOFTSTART 100
 #define ADC_DELAY 100
@@ -64,7 +64,7 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
-		write_command=0,go_home=0;
+		write_command=0,go_home=0,interrupts=1;
 uint8_t empty_found=0,buzzer=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
@@ -147,7 +147,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while(1){
 	if(pressed){
-		last_debounce=HAL_GetTick();
 		pressed=0;
 		if(stall){
 			stall=0;
@@ -174,8 +173,11 @@ int main(void)
 			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
 			adc=1;
 		}
-		if(tick>last_debounce+DEBOUNCE){
+		if(tick>last_debounce+DEBOUNCE && interrupts==0){
+		    __HAL_GPIO_EXTI_CLEAR_FALLING_IT(GPIO_PIN_3);
+		    HAL_NVIC_ClearPendingIRQ(EXTI2_3_IRQn);
 			HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+			interrupts=1;
 		}
 		if(servo_power_rdy==0&&tick>=SOFTSTART){
 			servo_power_rdy=1;
@@ -581,6 +583,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 	HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
+	interrupts=0;
+	last_debounce=HAL_GetTick();
 	pressed=1;
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim){
