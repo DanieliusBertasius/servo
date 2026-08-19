@@ -185,49 +185,53 @@ int main(void)
 
 		if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0){
 			switch(go_home){
-			case 0:
-				if(angle==180){
-					direction=0;
-				}
-				else if(angle==0){
-					direction=1;
-				}
-				if(direction){
-					angle++;
-				}
-				else{
-					angle--;
-				}
-				break;
-			case 1:
-				if(angle==180||angle==0){
+				case 0:
+					if(angle==180){
+						direction=0;
+					}
+					else if(angle==0){
+						direction=1;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
 					break;
-				}
-				if(direction){
-					angle++;
-				}
-				else{
-					angle--;
-				}
-				break;
-			case 2:
-				if(angle==0){
-					direction=1;
-				}
-				else if(angle==180){
-					direction=0;
-				}
-				else if(angle==90){
+				case 1:
+					if(angle==180||angle==0){
+						break;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
 					break;
-				}
-				if(direction){
-					angle++;
-				}
-				else{
-					angle--;
-				}
-				break;
+				case 2:
+					if(angle==0){
+						direction=1;
+					}
+					else if(angle==180){
+						direction=0;
+					}
+					else if(angle==90){
+						break;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
+					break;
+				default:
+					go_home=0;
+					break;
 			}
+
 		}
 		if(stall){
 			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
