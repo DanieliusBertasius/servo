@@ -1,3 +1,6 @@
+TO DO:
+* Add pulldown on MOSFET
+
 Features:
 * 5.75 - 12 V input
 * Stall detection at 0.8 A

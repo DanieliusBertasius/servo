@@ -40,7 +40,7 @@
 #define R_SHUNT 0.22
 #define THRESHOLD I_STALL*R_SHUNT/3.3*4095
 
-#define DEBOUNCE 0
+#define DEBOUNCE 500
 
 #define SOFTSTART 100
 #define ADC_DELAY 100
@@ -64,7 +64,7 @@ TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
-		write_command=0,go_home=0;
+		write_command=0,go_home=0,interrupts=1;
 uint8_t empty_found=0,buzzer=0;
 volatile uint16_t ADC_VAL[30],sum=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
@@ -146,6 +146,93 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while(1){
+	if(pressed){
+		pressed=0;
+		if(stall){
+			stall=0;
+			restart=HAL_GetTick();
+			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
+			HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
+			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+		}
+		else{
+			go_home++;
+		}
+	}
+	if(ticked){
+		ticked=0;
+		tick=HAL_GetTick();
+		if(tick%BUZZER==0){
+			buzzer=!buzzer;
+		}
+		if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			adc=1;
+		}
+		else if(restart!=0 && tick>=restart+ADC_DELAY && adc==0){
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			adc=1;
+		}
+		if(tick>last_debounce+DEBOUNCE && interrupts==0){
+		    __HAL_GPIO_EXTI_CLEAR_FALLING_IT(GPIO_PIN_3);
+		    HAL_NVIC_ClearPendingIRQ(EXTI2_3_IRQn);
+			HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+			interrupts=1;
+		}
+		if(servo_power_rdy==0&&tick>=SOFTSTART){
+			servo_power_rdy=1;
+		}
+
+		if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0){
+			switch(go_home){
+				case 0:
+					if(angle==180){
+						direction=0;
+					}
+					else if(angle==0){
+						direction=1;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
+					break;
+				case 1:
+					if(angle==180||angle==0){
+						break;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
+					break;
+				case 2:
+					if(angle==0){
+						direction=1;
+					}
+					else if(angle==180){
+						direction=0;
+					}
+					else if(angle==90){
+						break;
+					}
+					if(direction){
+						angle++;
+					}
+					else{
+						angle--;
+					}
+					break;
+				default:
+					go_home=0;
+					break;
+			}
+
+		}
 		if(stall){
 			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
 			HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
@@ -171,57 +258,9 @@ int main(void)
 			}
 			sum=0;
 		}
-		if(pressed){
-			if(stall){
-				stall=0;
-				last_debounce=HAL_GetTick();
-				restart=HAL_GetTick();
-				HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-				HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
-				HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-				pressed=0;
-			}
-			else{
-				go_home=1;
-			}
-		}
 
-		if(ticked){
-			ticked=0;
-			tick=HAL_GetTick();
-			if(tick%BUZZER==0){
-				buzzer=!buzzer;
-			}
-			if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
-				HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
-				adc=1;
-			}
-			else if(restart!=0 && tick>=restart+ADC_DELAY && adc==0){
-			  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
-			  adc=1;
-			}
-			if(tick>last_debounce+DEBOUNCE){
-			  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
-			}
-			if(servo_power_rdy==0&&tick>=SOFTSTART){
-			  servo_power_rdy=1;
-			}
+	}
 
-			if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0&&(go_home==0||(angle!=0&&angle!=180))){
-			  if(angle==180){
-				  direction=0;
-			  }
-			  else if(angle==0){
-				  direction=1;
-			  }
-			  if(direction){
-				  angle++;
-			  }
-			  else{
-				  angle--;
-			  }
-			}
-		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -548,6 +587,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 	HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
+	interrupts=0;
+	last_debounce=HAL_GetTick();
 	pressed=1;
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim){
