@@ -1,6 +1,3 @@
-TO DO:
-* Add pulldown on MOSFET
-
 Features:
 * 5.75 - 12 V input
 * Stall detection at 0.8 A
@@ -10,6 +7,7 @@ Notes to future self:
 * Add ground test points
 * Use countersunk screws if screw heads mount on bottom layer, no supports needed
 * Use connectors for buttons
+* Use servo mounting disc for rotating along axis
 
 <img src="screenshots/photo.jpg" alt="Finished PCB photo" width="50%">
 
