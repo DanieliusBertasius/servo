@@ -39,9 +39,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 1.2,
-          "height": 2.4,
-          "width": 2.4
+          "drill": 0.0,
+          "height": 1.4,
+          "width": 1.2
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -124,7 +124,7 @@
         "silk_over_copper": "warning",
         "silk_overlap": "warning",
         "skew_out_of_range": "error",
-        "solder_mask_bridge": "error",
+        "solder_mask_bridge": "warning",
         "starved_thermal": "error",
         "text_height": "warning",
         "text_on_edge_cuts": "error",
@@ -699,7 +699,7 @@
         "uuid": "868aa114-83f2-46f3-8e6d-8a7027303d9c"
       }
     ],
-    "used_designators": "J4,#PWR20,#PWR33",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
