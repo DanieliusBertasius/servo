@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BUZZER 250 // half period in millis
+#define BUZZER 250 // modulation half period in millis
 
 #define VREFINT 1.212
 #define POWEROFF_THRESHOLD VREFINT/3.05*4095
@@ -39,6 +39,8 @@
 #define I_STALL 0.8
 #define R_SHUNT 0.22
 #define THRESHOLD I_STALL*R_SHUNT/3.3*4095
+#define ARRAY (20*30) //30 is one servo update period, 5*30 optimal
+#define SPEED 3 //increment in degrees every 10ms
 
 #define DEBOUNCE 500
 
@@ -66,7 +68,8 @@ TIM_HandleTypeDef htim16;
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
 		write_command=0,go_home=0,interrupts=1;
 uint8_t empty_found=0,buzzer=0;
-volatile uint16_t ADC_VAL[30],sum=0;
+volatile uint16_t ADC_VAL[ARRAY],sum=0;
+uint16_t current=0,current2=0;
 volatile uint32_t last_debounce=0,tick=0,restart=0;
 uint32_t next_write=FLASH_ADDR;
 
@@ -162,15 +165,18 @@ int main(void)
 	if(ticked){
 		ticked=0;
 		tick=HAL_GetTick();
+		if(tick%1000<10){
+			current2=current;
+		}
 		if(tick%BUZZER==0){
 			buzzer=!buzzer;
 		}
 		if(restart==0 && tick>=ADCSTART0 && adc==0){ // only at bootup
-			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, ARRAY); // always first in systick
 			adc=1;
 		}
 		else if(restart!=0 && tick>=restart+ADC_DELAY && adc==0){
-			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30); // always first in systick
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, ARRAY); // always first in systick
 			adc=1;
 		}
 		if(tick>last_debounce+DEBOUNCE && interrupts==0){
@@ -193,10 +199,10 @@ int main(void)
 						direction=1;
 					}
 					if(direction){
-						angle++;
+						angle+=SPEED;
 					}
 					else{
-						angle--;
+						angle-=SPEED;
 					}
 					break;
 				case 1:
@@ -204,10 +210,10 @@ int main(void)
 						break;
 					}
 					if(direction){
-						angle++;
+						angle+=SPEED;
 					}
 					else{
-						angle--;
+						angle-=SPEED;
 					}
 					break;
 				case 2:
@@ -221,17 +227,16 @@ int main(void)
 						break;
 					}
 					if(direction){
-						angle++;
+						angle+=SPEED;
 					}
 					else{
-						angle--;
+						angle-=SPEED;
 					}
 					break;
 				default:
 					go_home=0;
 					break;
 			}
-
 		}
 		if(stall){
 			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
@@ -246,15 +251,16 @@ int main(void)
 			HAL_ADC_Stop_DMA(&hadc1);
 			complete=0;
 			int i;
-			for(i=0;i<30;i+=2){
+			for(i=0;i<ARRAY;i+=2){
 				sum+=ADC_VAL[i];
 			}
-			sum=sum/15;
+			sum=sum/ARRAY*2;
+			current=sum/4095.0*3.3/R_SHUNT*1e3;
 			if(sum>THRESHOLD){
 				stall=1;
 			}
 			else if(stall==0){
-				HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, 30);
+				HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_VAL, ARRAY);
 			}
 			sum=0;
 		}
@@ -347,7 +353,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_160CYCLES_5;
+  hadc1.Init.SamplingTimeCommon1 = ADC_SAMPLETIME_1CYCLE_5;
   hadc1.Init.SamplingTimeCommon2 = ADC_SAMPLETIME_160CYCLES_5;
   hadc1.Init.OversamplingMode = DISABLE;
   hadc1.Init.TriggerFrequencyMode = ADC_TRIGGER_FREQ_HIGH;
