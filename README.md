@@ -17,3 +17,4 @@ MCU: <br><br>
 <img src="screenshots/mcu.PNG" alt="MCU schematic" width="75%">
 <img src="screenshots/pcb.png" alt="PCB" width="75%">
 <img src="screenshots/3d.PNG" alt="3D view" width="75%">
+<img src="screenshots/enclosure.PNG" alt="enclosure drawing" width="75%">
