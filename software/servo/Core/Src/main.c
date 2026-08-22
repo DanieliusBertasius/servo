@@ -586,6 +586,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	complete=1;
 	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
 		write_command=1;
+		HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
+		HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
 		if(Write_Flash(next_write, angle)==HAL_OK){
 			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
 		}
