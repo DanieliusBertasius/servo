@@ -1,4 +1,4 @@
-Failed just after testing, suspected potentiometer wearout
+# ❗ Servo failed right after testing, suspected potentiometer wearout
 
 Features:
 * 5.75 - 12 V input
