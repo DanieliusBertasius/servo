@@ -8610,7 +8610,7 @@
 				)
 			)
 		)
-		(property "Description" "Inductor"
+		(property "Description" "Inductor, 2A I_sat, 14.1u minimum"
 			(at 107.95 29.21 0)
 			(hide yes)
 			(show_name no)
