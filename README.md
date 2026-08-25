@@ -1,3 +1,5 @@
+# ❗ Servo failed right after testing, suspected potentiometer wearout
+
 Features:
 * 5.75 - 12 V input
 * Stall detection at 0.8 A
@@ -17,3 +19,4 @@ MCU: <br><br>
 <img src="screenshots/mcu.PNG" alt="MCU schematic" width="75%">
 <img src="screenshots/pcb.png" alt="PCB" width="75%">
 <img src="screenshots/3d.PNG" alt="3D view" width="75%">
+<img src="screenshots/enclosure.PNG" alt="enclosure drawing" width="75%">
