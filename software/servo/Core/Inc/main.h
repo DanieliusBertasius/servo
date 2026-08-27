@@ -61,8 +61,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define buzzer_Pin GPIO_PIN_7
 #define buzzer_GPIO_Port GPIOB
-#define fet_Pin GPIO_PIN_6
-#define fet_GPIO_Port GPIOA
 #define led_Pin GPIO_PIN_7
 #define led_GPIO_Port GPIOA
 

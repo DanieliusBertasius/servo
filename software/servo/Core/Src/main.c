@@ -45,9 +45,6 @@
 #define SOFTSTART 100
 #define ADC_DELAY 100
 #define ADCSTART0 (SOFTSTART+ADC_DELAY)
-
-#define FLASH_ADDR   0x08007800U
-#define FLASH_PAGE   15U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,16 +56,16 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
-TIM_HandleTypeDef htim14;
+TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
-		write_command=0,go_home=0,interrupts=1;
-uint8_t empty_found=0,buzzer=0;
-volatile uint16_t ADC_VAL[30],sum=0;
-volatile uint32_t last_debounce=0,tick=0,restart=0;
-uint32_t next_write=FLASH_ADDR;
+volatile uint8_t ticked=0,pressed=0,complete=0,interrupts=1;
+volatile uint16_t ADC_VAL[ARRAY];
+uint16_t current=0,current2=0,sum=0;
+volatile uint32_t last_debounce=0;
+uint32_t tick=0;
 
 /* USER CODE END PV */
 
@@ -77,11 +74,9 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_TIM14_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-HAL_StatusTypeDef Erase_Flash_Page(uint32_t page_num);
-HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,27 +115,13 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
-  MX_TIM14_Init();
   MX_TIM16_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  for(uint32_t i=FLASH_ADDR;i<(FLASH_ADDR+2048U);i+=8){
-	  if(*(volatile uint64_t*)i!=0xFFFFFFFFFFFFFFFFULL){
-		  angle = *(volatile uint8_t*)i;
-	  }
-	  else{
-		  next_write=i;
-		  empty_found=1;
-		  break;
-	  }
-  }
-  if(empty_found==0){
-	  Erase_Flash_Page(FLASH_PAGE);
-	  next_write=FLASH_ADDR;
-  }
+
   HAL_TIM_Base_Start_IT(&htim16);
-  TIM14->CCR1 = (angle/180.0*0.09+0.03)*65535;
   HAL_TIM_Base_Start_IT(&htim14);
-  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -148,15 +129,11 @@ int main(void)
   while(1){
 	if(pressed){
 		pressed=0;
-		if(stall){
-			stall=0;
-			restart=HAL_GetTick();
-			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 1);
-			HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1); //servo write
-			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+		if(state!=2){
+		    state=2;
 		}
 		else{
-			go_home++;
+		    state=0;
 		}
 	}
 	if(ticked){
@@ -183,60 +160,26 @@ int main(void)
 			servo_power_rdy=1;
 		}
 
-		if(servo_power_rdy&&stall==0&&tick%10==0&&write_command==0){
-			switch(go_home){
-				case 0:
 					if(angle==180){
-						direction=0;
-					}
-					else if(angle==0){
-						direction=1;
-					}
-					if(direction){
-						angle++;
 					}
 					else{
-						angle--;
-					}
-					break;
-				case 1:
-					if(angle==180||angle==0){
-						break;
-					}
-					if(direction){
-						angle++;
-					}
-					else{
-						angle--;
-					}
-					break;
-				case 2:
-					if(angle==0){
-						direction=1;
-					}
-					else if(angle==180){
-						direction=0;
-					}
-					else if(angle==90){
-						break;
-					}
-					if(direction){
-						angle++;
-					}
-					else{
-						angle--;
-					}
-					break;
-				default:
-					go_home=0;
-					break;
+		if(servo_power_rdy&&stall==0&&tick%1000==0){ //pakeitus aparatura isimt maitinimo uzdelsima
+			if(state==0){
+			    TIM14->CCR1=65535;
+			    state=1;
+			}
+			else if(state==1){
+			    TIM14->CCR1=0;
+			    state=0;
+			}
+			else{
+			    TIM14->CCR1=10000;
 			}
 
 		}
 		if(stall){
 			HAL_ADC_Stop_DMA(&hadc1); // stop sampling for stalls & position
-			HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1); // servo control stop
-			HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, 0); // servo power cut
+			TIM14->CCR1=0;
 			adc=0;
 			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1); // alert LED on
 		}
@@ -382,33 +325,46 @@ static void MX_ADC1_Init(void)
 }
 
 /**
-  * @brief TIM14 Initialization Function
+  * @brief TIM3 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM14_Init(void)
+static void MX_TIM3_Init(void)
 {
 
-  /* USER CODE BEGIN TIM14_Init 0 */
+  /* USER CODE BEGIN TIM3_Init 0 */
 
-  /* USER CODE END TIM14_Init 0 */
+  /* USER CODE END TIM3_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
-  /* USER CODE BEGIN TIM14_Init 1 */
-
-  /* USER CODE END TIM14_Init 1 */
-  htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 19;
-  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 65535;
-  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
+  /* USER CODE BEGIN TIM3_Init 1 */
+  // 25 kHz drive
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 2559;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim14) != HAL_OK)
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -416,14 +372,13 @@ static void MX_TIM14_Init(void)
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim14, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM14_Init 2 */
+  /* USER CODE BEGIN TIM3_Init 2 */
 
-  /* USER CODE END TIM14_Init 2 */
-  HAL_TIM_MspPostInit(&htim14);
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -495,9 +450,6 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(fet_GPIO_Port, fet_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : buzzer_Pin */
@@ -507,12 +459,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(buzzer_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : fet_Pin led_Pin */
-  GPIO_InitStruct.Pin = fet_Pin|led_Pin;
+  /*Configure GPIO pin : led_Pin */
+  GPIO_InitStruct.Pin = led_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(led_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB3 */
   GPIO_InitStruct.Pin = GPIO_PIN_3;
@@ -575,15 +527,11 @@ HAL_StatusTypeDef Write_Flash(uint32_t address, uint8_t value){
     return status;
 }
 
+
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	complete=1;
-	if(ADC_VAL[1]>POWEROFF_THRESHOLD){
-		write_command=1;
-		if(Write_Flash(next_write, angle)==HAL_OK){
-			HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
-		}
-	}
 }
 void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 	HAL_NVIC_DisableIRQ(EXTI2_3_IRQn);
