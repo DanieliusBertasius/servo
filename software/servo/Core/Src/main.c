@@ -60,8 +60,8 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t servo_power_rdy=0,angle=90,direction=1,stall=0,adc=0,ticked=0,stop_command=0,pressed=0,complete=0,
 volatile uint8_t ticked=0,pressed=0,complete=0,interrupts=1;
+uint8_t adc=0,stall=0,buzzer=0,state=0;
 volatile uint16_t ADC_VAL[ARRAY];
 uint16_t current=0,current2=0,sum=0;
 volatile uint32_t last_debounce=0;
@@ -120,7 +120,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim16);
-  HAL_TIM_Base_Start_IT(&htim14);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
@@ -160,9 +159,6 @@ int main(void)
 			servo_power_rdy=1;
 		}
 
-					if(angle==180){
-					}
-					else{
 		if(servo_power_rdy&&stall==0&&tick%1000==0){ //pakeitus aparatura isimt maitinimo uzdelsima
 			if(state==0){
 			    TIM14->CCR1=65535;
@@ -379,6 +375,7 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
